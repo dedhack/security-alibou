@@ -26,7 +26,7 @@ public class SecurityConfiguration {
                 .csrf()
                 .disable()
                 .authorizeHttpRequests()
-                .requestMatchers("")// whitelist this list
+                .requestMatchers("/api/v1/auth/**")// whitelist this list
                 .permitAll()
                 .anyRequest() // any other requests should be authenticated
                 .authenticated()
