@@ -1,6 +1,9 @@
 package com.izhar.securityalibou.auth;
 
 import com.izhar.securityalibou.config.JwtService;
+import com.izhar.securityalibou.token.Token;
+import com.izhar.securityalibou.token.TokenRepository;
+import com.izhar.securityalibou.token.TokenType;
 import com.izhar.securityalibou.user.Role;
 import com.izhar.securityalibou.user.User;
 import com.izhar.securityalibou.user.UserRepository;
@@ -16,6 +19,8 @@ import org.springframework.stereotype.Service;
 public class AuthenticationService {
 
     private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
+
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -29,11 +34,23 @@ public class AuthenticationService {
                 .role(Role.USER)
                 .build();
 
-        userRepository.save(user);
+        var savedUser = userRepository.save(user);
         var jwtToken = jwtService.generateToken(user);
+        saveUserToken(savedUser, jwtToken);
         return AuthenticationResponse.builder()
                 .token(jwtToken)
                 .build();
+    }
+
+    private void saveUserToken(User user, String jwtToken) {
+        var token = Token.builder()
+                .user(user)
+                .token(jwtToken)
+                .tokenType(TokenType.BEARER)
+                .revoked(false)
+                .expired(false)
+                .build();
+        tokenRepository.save(token);
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
@@ -46,6 +63,8 @@ public class AuthenticationService {
         // if username and password correct
         var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
         var jwtToken = jwtService.generateToken(user);
+        saveUserToken(user, jwtToken);
+
         return AuthenticationResponse.builder()
                 .token(jwtToken)
                 .build();
