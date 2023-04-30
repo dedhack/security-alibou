@@ -1,5 +1,6 @@
 package com.izhar.securityalibou.user;
 
+import com.izhar.securityalibou.token.Token;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,9 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     private Role role; // create ENUM
+
+    @OneToMany(mappedBy = "user")
+    private List<Token> tokens;
 
     // To return a list of roles
     @Override
