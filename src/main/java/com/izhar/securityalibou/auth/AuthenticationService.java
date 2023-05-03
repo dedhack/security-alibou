@@ -1,5 +1,6 @@
 package com.izhar.securityalibou.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.izhar.securityalibou.config.JwtService;
 import com.izhar.securityalibou.token.Token;
 import com.izhar.securityalibou.token.TokenRepository;
@@ -7,12 +8,16 @@ import com.izhar.securityalibou.token.TokenType;
 import com.izhar.securityalibou.user.Role;
 import com.izhar.securityalibou.user.User;
 import com.izhar.securityalibou.user.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
@@ -43,8 +48,6 @@ public class AuthenticationService {
                 .refreshToken(refreshToken)
                 .build();
     }
-
-
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         authenticationManager.authenticate(
@@ -85,5 +88,41 @@ public class AuthenticationService {
                 .expired(false)
                 .build();
         tokenRepository.save(token);
+    }
+
+    public void refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response) throws IOException {
+        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final String refreshToken;
+        final String userEmail;
+
+        // if no authHeader, the filter will pass the request along the filter chain
+        if (authHeader == null || !authHeader.startsWith("Bearer ")){
+            return;
+        }
+
+        // if the header is present then, we extract the jwt token
+        refreshToken = authHeader.substring(7); // extract the token from the header after "Bearer "
+        userEmail = jwtService.extractUsername(refreshToken);// TODO: extract the userEmail from JWT Token
+        // check userEmail is not null & if user has not been authenticated previously
+        if (userEmail != null){
+            // check user from DB
+            var userDetails = this.userRepository.findByEmail(userEmail).orElseThrow();
+
+            // check if token is valid
+            if (jwtService.isTokenValid(refreshToken,userDetails)){
+                var accessToken = jwtService.generateToken(userDetails); // create access token
+                revokeAllUserTokens(userDetails);
+                saveUserToken(userDetails, accessToken);
+                var authResponse = AuthenticationResponse.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(refreshToken) // reuse the same refresh token, unless expired
+                        .build();
+
+                new ObjectMapper().writeValue(response.getOutputStream(), authResponse);
+            }
+
+        }
     }
 }
