@@ -1,5 +1,6 @@
 package com.izhar.securityalibou.config;
 
+import com.izhar.securityalibou.token.TokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenRepository tokenRepository;
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
@@ -45,8 +47,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null){
             // check user from DB
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+            var isTokenValid = tokenRepository.findByToken(jwt)
+                    .map(t->!t.isExpired() && !t.isRevoked())
+                    .orElse(false);
+
             // check if token is valid
-            if (jwtService.isTokenValid(jwt,userDetails)){
+            if (jwtService.isTokenValid(jwt,userDetails) && isTokenValid){
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
