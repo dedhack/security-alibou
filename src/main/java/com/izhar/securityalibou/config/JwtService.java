@@ -42,14 +42,25 @@ public class JwtService {
             Map<String, Object> extraClaims,// for passing additional details like authorities etc
             UserDetails userDetails
     ){
+        return buildToken(extraClaims, userDetails, jwtExpiration);
+    }
+    public String generateRefreshToken(
+            UserDetails userDetails
+    ){
+        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+    }
+
+    private String buildToken(
+            Map<String, Object> extraClaims,
+            UserDetails userDetails,
+            long expiration) {
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername()) // this is passing our email, which in Spring the unique item detail is Username
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24)) // valid for 24 hours before expriing
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
-                .compact(); // to finally generate and return the token
-
+                .compact();
     }
 
     // check validity of token
